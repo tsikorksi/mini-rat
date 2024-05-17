@@ -1,4 +1,5 @@
 import hashlib
+import base64
 from flask import Flask, request
 # import ssl
 
@@ -20,6 +21,7 @@ def serve_commands():
     for cmd in cmds:
         hash = hashlib.sha256(cmd.encode("utf-8")).hexdigest()
         page += f"{cmd}:{hash}\n"
+    page = base64.urlsafe_b64encode(bytes(page.encode('utf-8')))
     return page
 
 @app.get("/mode")
@@ -40,7 +42,8 @@ def recieve_data():
     Returns:
         string: blank page, 200 code
     """
-    print(str(request.data, "utf-8"))
+    data = base64.urlsafe_b64decode(bytes(request.data))
+    print(str(data, "utf-8"))
     return "", 200
 
 
