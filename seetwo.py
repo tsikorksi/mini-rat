@@ -4,7 +4,7 @@ from flask import Flask, request
 # import ssl
 
 PORT = 9998
-active = True
+active = "passive"
 
 cmds = []
 
@@ -17,23 +17,15 @@ def serve_commands():
     Returns:
         string: list of commands
     """
-    page = ""
+    if active == "active":
+        page = "active\n"
+    else:
+        page = "passive\n" 
     for cmd in cmds:
         hash = hashlib.sha256(cmd.encode("utf-8")).hexdigest()
         page += f"{cmd}:{hash}\n"
     page = base64.urlsafe_b64encode(bytes(page.encode('utf-8')))
     return page
-
-@app.get("/mode")
-def serve_mode():
-    """show the mode
-
-    Returns:
-        string: active or passive for the mode
-    """
-    if active:
-        return "active"
-    return "passive"
 
 @app.post("/data")
 def recieve_data():

