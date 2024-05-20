@@ -68,6 +68,12 @@ def recieve_data(uid):
 
 
 def add_command(command, uid):
+	"""_summary_
+
+	Arguments:
+		command -- _description_
+		uid -- _description_
+	"""
 	global agent_db
 
 	agent_db[uid]["commands"][command] = "!EMPTY!"
