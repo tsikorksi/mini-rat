@@ -195,9 +195,10 @@ def verify(key, command, parameters, integrity):
 	"""
 	# TODO use salt and hash
 	if key != password:
+		print("Wrong password!")
 		return False
 
-	data = f"{key}:{command}:{parameters}"
+	data = f"{key}::{command}::{parameters}"
 	if hashlib.sha256(data.encode("utf-8")).hexdigest() != integrity:
 		print("Data error detected!")
 		return False

