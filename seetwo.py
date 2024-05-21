@@ -13,6 +13,12 @@ agent_db = {}
 
 
 def register_agent(uname, uid):
+	"""Add agent to database
+
+	Arguments:
+		uname -- basic system data of the incoming machine
+		uid -- agent side generated id
+	"""
 	global agent_db
 	base = {
 		"uname": uname,
@@ -23,6 +29,7 @@ def register_agent(uname, uid):
 	if uid not in agent_db:
 		agent_db[uid] = base
 		global cmds
+		# for testing 
 		for cmd in cmds:
 			add_all(cmd)
 	else:
@@ -68,11 +75,11 @@ def recieve_data(uid):
 
 
 def add_command(command, uid):
-	"""_summary_
+	"""add command to be processed to an agent 
 
 	Arguments:
-		command -- _description_
-		uid -- _description_
+		command -- command for remote agent
+		uid -- uid of agent
 	"""
 	global agent_db
 
@@ -80,6 +87,11 @@ def add_command(command, uid):
 
 
 def add_all(command):
+	"""add a command to every uid
+
+	Arguments:
+		command -- command 
+	"""
 	global agent_db
 	for uid in agent_db.keys():
 		add_command(command, uid)
