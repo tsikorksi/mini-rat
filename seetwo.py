@@ -105,4 +105,7 @@ if __name__ == "__main__":
 	cmds.append("env::")
 	cmds.append("usr::")
 
-	app.run(host="localhost", port=9998, debug=True)
+	# openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365
+	ssl_context=('cert.pem', 'key.pem')
+
+	app.run(host="localhost", port=9998, debug=True, ssl_context=ssl_context)
