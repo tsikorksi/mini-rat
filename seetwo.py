@@ -48,7 +48,6 @@ def register():
 	return "", 200
 
 
-
 @app.get("/<uid>/commands")
 def serve_commands(uid):
 	global agent_db
@@ -106,6 +105,6 @@ if __name__ == "__main__":
 	cmds.append("usr::")
 
 	# openssl req -x509 -newkey rsa:4096 -nodes -out cert.pem -keyout key.pem -days 365
-	ssl_context=('cert.pem', 'key.pem')
+	ssl_context = ('cert.pem', 'key.pem')
 
 	app.run(host="localhost", port=9998, debug=True, ssl_context=ssl_context)

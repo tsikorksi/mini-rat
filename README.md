@@ -10,7 +10,7 @@ TODO:
 - Multi evasion techniques
 - Priv Esc
 - HTTPS at server side
-- Better persistance
+- Better persistence
 - ransomware addition
 - auto upgrade from remote, micro loader
 - Auto obfuscation of python (Lovelace)

