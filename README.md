@@ -2,6 +2,8 @@
 
 requires requests at the agent level
 
+Ransom stuff is untested 
+
 TODO:
 - Windows Support
 - SQLite agent storage
@@ -11,6 +13,5 @@ TODO:
 - Priv Esc
 - HTTPS at server side
 - Better persistence
-- ransomware addition
 - auto upgrade from remote, micro loader
 - Auto obfuscation of python (Lovelace)
